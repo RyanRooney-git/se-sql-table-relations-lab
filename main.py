@@ -12,9 +12,10 @@ pd.read_sql("""SELECT * FROM sqlite_master""", conn)
 # STEP 1
 # Replace None with your code
 df_boston = pd.read_sql("""
-SELECT e.firstName, e.lastName, e.jobTitle
+SELECT e.firstName, e.lastName
 FROM employees e
-JOIN offices o ON e.officeCode = o.officeCode
+JOIN offices o
+    ON e.officeCode = o.officeCode
 WHERE o.city = 'Boston'
 """, conn)
 
@@ -49,25 +50,48 @@ ORDER BY c.contactLastName
 
 # STEP 5
 # Replace None with your code
-df_payment = pd.read_sql("""
-SELECT c.contactFirstName, c.contactLastName, p.paymentDate,
-       CAST(p.amount AS FLOAT) AS amount
-FROM customers c
-JOIN payments p ON c.customerNumber = p.customerNumber
-ORDER BY amount DESC
+df_customers = pd.read_sql("""
+SELECT
+    p.productName,
+    p.productCode,
+    COUNT(DISTINCT c.customerNumber) AS numpurchasers
+FROM products p
+JOIN orderdetails od
+    ON p.productCode = od.productCode
+JOIN orders o
+    ON od.orderNumber = o.orderNumber
+JOIN customers c
+    ON o.customerNumber = c.customerNumber
+GROUP BY p.productCode, p.productName
+ORDER BY numpurchasers DESC
 """, conn)
 
 # STEP 6
 # Replace None with your code
-df_credit = pd.read_sql("""
-SELECT e.employeeNumber, e.firstName, e.lastName,
-       COUNT(c.customerNumber) AS num_customers
+df_under_20 = pd.read_sql("""
+SELECT DISTINCT
+    e.employeeNumber,
+    e.firstName,
+    e.lastName,
+    o.city,
+    o.officeCode
 FROM employees e
+JOIN offices o
+    ON e.officeCode = o.officeCode
 JOIN customers c
     ON e.employeeNumber = c.salesRepEmployeeNumber
-GROUP BY e.employeeNumber
-HAVING AVG(c.creditLimit) > 90000
-ORDER BY num_customers DESC
+JOIN orders ord
+    ON c.customerNumber = ord.customerNumber
+JOIN orderdetails od
+    ON ord.orderNumber = od.orderNumber
+WHERE od.productCode IN (
+    SELECT od.productCode
+    FROM orderdetails od
+    JOIN orders ord2
+        ON od.orderNumber = ord2.orderNumber
+    GROUP BY od.productCode
+    HAVING COUNT(DISTINCT ord2.customerNumber) < 20
+)
 """, conn)
 
 # STEP 7
